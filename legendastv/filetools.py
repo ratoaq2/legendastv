@@ -337,6 +337,7 @@ def safepathname(path, name):
         If the existing name is encoded in any of the specified encodings, 
         the file/folder is renamed to be compliant with the filesystem encoding
     """
+    path_encoding = None
     for i in range(len(name)):
         current_char = name[i]
         if len(name) != 1 and i < (len(name) - 1):
@@ -346,21 +347,25 @@ def safepathname(path, name):
             # 2nd char: 0x80-0xFF
             if ((current_char == '\xC2' or current_char == '\xC3') and 
                 (next_char >= '\x80' or next_char <= '\xFF')):
-                return rename_invalid_paths(path, name, 'UTF-8')
+                path_encoding = 'UTF-8'
+                break;
 
         # Detects CP850: 0x80-0xA5
         if current_char >= '\x80' and current_char <= '\xA5':
-            return rename_invalid_paths(path, name, 'CP850')
+            path_encoding = 'CP850'
+            break;
         # Detects ISO-8859-15: 0xA6-0xFF
         elif current_char >= '\xA6' and current_char <= '\xFF':
-            return rename_invalid_paths(path, name, 'ISO-8859-15')
+            path_encoding = 'ISO-8859-15'
+            break;
+    
+    if (path_encoding and g.filesystem_encoding != path_encoding):
+        rename_invalid_paths(path, name, path_encoding)
 
 def rename_invalid_paths(path, name, name_encoding):
-    """ If the name_encoding is different then the filesystem encoding,
-        the file/folder name is re-encoded into the filesystem encoding
+    """ Re-encode the file/folder name to the filesystem encoding
     """
-    if (g.filesystem_encoding != name_encoding):
-        safe_name = name.decode(name_encoding)
-        safe_name = safe_name.encode(g.filesystem_encoding)
-        safe_full_name = os.path.join(path, safe_name)
-        os.rename(os.path.join(path, name), safe_full_name)
+    safe_name = name.decode(name_encoding)
+    safe_name = safe_name.encode(g.filesystem_encoding)
+    safe_full_name = os.path.join(path, safe_name)
+    os.rename(os.path.join(path, name), safe_full_name)
